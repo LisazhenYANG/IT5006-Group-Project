@@ -57,17 +57,31 @@ For the test set, features are derived from 2022–2024 data to predict hotspot 
 **Hotspot Label Definition**
 A community area is labelled a hotspot (`y = 1`) if its annual crime count is at or above the 75th percentile across all 77 community areas in that year. This threshold produces a class ratio of approximately 26% hotspots vs. 74% non-hotspots.
 
-**Engineered Features (36 total)**
+**Engineered Features (35 total)**
 
 | Feature Group | Features | Description |
 |---|---|---|
-| Crime volume | `crime_count_last3y` | Total crime incidents in the area over the 3-year window |
+| Crime volume | `crime_count_last3y` | Total crime incidents in the area over the 3-year window(**Removed**) |
 | Geographic center | `lat_mean`, `lon_mean` | Mean latitude and longitude of crimes in the area (MinMax scaled) |
 | Location type ratios | `commercial_ratio`, `institution_ratio`, `other_ratio`, `public_ratio`, `residential_ratio` | Proportion of crimes by venue category |
 | Crime type ratios | `theft_ratio`, `battery_ratio`, `criminal_damage_ratio`, `assault_ratio`, `deceptive_practice_ratio`, `other_crime_ratio` | Proportion of each major crime type within the area |
 | District identity | `district_1` … `district_25` (22 columns) | One-hot encoded dominant police district of the area |
 
 Location categories were derived by mapping 100+ raw `location_description` values into five groups: `PUBLIC_OUTDOOR`, `RESIDENTIAL`, `COMMERCIAL`, `INSTITUTION`, and `OTHER`. Crime type ratios cover the top 5 crime types by frequency (Theft, Battery, Criminal Damage, Assault, Deceptive Practice), with all remaining types aggregated into `other_crime_ratio`.
+
+The feature representing the total number of crimes in the previous three years (crime_count_last3y) was intentionally excluded from the final feature set.This decision was made because the hotspot label itself is defined based on crime count rankings within each year. Including historical crime counts as a feature would create a very strong correlation between the input features and the prediction label.
+As a result, the model may rely primarily on past crime volume rather than learning broader spatial and environmental patterns associated with crime hotspots.
+
+By removing this feature, the model is encouraged to focus on:
+
+- spatial characteristics
+
+- crime type distributions
+
+- environmental context
+
+This design better aligns with the research objective of identifying spatial factors associated with crime hotspots, rather than simply predicting future crime counts based on historical counts.
+ 
 
 **Class Distribution (Training Set)**
 
@@ -219,23 +233,13 @@ The feature set contains aggregated historical statistics computed over 3-year r
 
 ---
 
-### 3.5 Model Robustness Analysis — Feature Ablation
+### 3.5 Model Robustness Analysis 
 
-To validate the contribution of individual features, an ablation experiment was conducted by retraining the best model after removing `crime_count_last3y`:
+To assess the robustness of the Random Forest model, the stability of model performance was examined across cross-validation folds and the final test dataset.
+First, during hyperparameter tuning, stratified 5-fold cross-validation was applied. The cross-validation results showed that multiple parameter configurations achieved similar performance levels, with accuracy values around 0.93–0.94 and F1-scores around 0.87–0.88. This indicates that the model performance is not highly sensitive to small variations in hyperparameters.
 
-| Configuration | Accuracy | Precision | Recall | F1-Score | AUC-ROC |
-|---|---|---|---|---|---|
-| Full Model (with `crime_count_last3y`) | 0.9481 | 1.0000 | 0.8000 | 0.8889 | **0.9904** |
-| Ablated Model (without `crime_count_last3y`) | 0.9221 | 0.8500 | 0.8500 | 0.8500 | 0.9833 |
-
-Removing `crime_count_last3y` caused:
-- Accuracy to drop from 0.9481 → 0.9221 (−2.6pp)
-- Precision to drop from 1.0000 → 0.8500 (−15.0pp), introducing false positives for the first time
-- AUC-ROC to drop from 0.9904 → 0.9833 (−0.71pp)
-
-This confirms that raw crime volume (`crime_count_last3y`) is a critical feature. However, the ablated model still achieves AUC-ROC = 0.9833, demonstrating that the remaining 34 ratio-based and geographic features carry strong independent predictive signal.
-
-Interestingly, the ablated model equalises precision and recall at 0.850 each, suggesting that `crime_count_last3y` primarily contributes to eliminating false positives — areas where crime composition ratios resemble hotspots but absolute crime volume is insufficient to warrant the label.
+In addition, the best cross-validation ROC-AUC score reached 0.971, while the final test set ROC-AUC was 0.983. The small difference between validation and test performance suggests that the model generalizes well to unseen data and does not suffer from significant overfitting.
+Overall, the consistency of performance across different folds and the strong test set results demonstrate that the model is robust and stable for hotspot prediction.
 
 ---
 
@@ -283,18 +287,6 @@ The top 4 features (`theft_ratio`, `battery_ratio`, `lat_mean`, `commercial_rati
 1. **Crime composition** (theft, battery, deceptive practice ratios): Areas where a disproportionate share of crimes are property crimes (theft) and interpersonal violence (battery) tend to be hotspots. These crime types are associated with opportunistic offending in densely populated or commercially active areas.
 
 2. **Geographic position** (`lat_mean`, `lon_mean`): The spatial coordinates of an area carry significant predictive power, reflecting persistent geographic clustering of crime that is not fully captured by crime composition alone.
-
-**Ablation Feature Importance (model without `crime_count_last3y`)**:
-
-| Rank | Feature | Importance |
-|---|---|---|
-| 1 | `battery_ratio` | 0.1240 |
-| 2 | `theft_ratio` | 0.1169 |
-| 3 | `commercial_ratio` | 0.1047 |
-| 4 | `lat_mean` | 0.0899 |
-| 5 | `other_ratio` | 0.0808 |
-
-When `crime_count_last3y` is removed, `commercial_ratio` rises from rank 4 to rank 3 (importance: 0.0906 → 0.1047), confirming that commercial location density is a strong structural predictor of crime hotspot formation independent of raw volume.
 
 ---
 
