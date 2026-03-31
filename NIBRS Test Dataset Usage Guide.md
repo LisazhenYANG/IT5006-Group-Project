@@ -67,6 +67,8 @@ y_nibrs = data["label"]
 
 ---
 ### Step 4: Remove latitude/longitude and district one-hot columns in X_train/X_test
+
+```python
 drop_cols = ["lat_mean", "lon_mean"] + [col for col in X_train.columns if col.startswith("district_")]
 
 X_train_aligned = X_train.drop(columns=drop_cols, errors="ignore").copy()
@@ -74,7 +76,6 @@ X_test_aligned = X_test.drop(columns=drop_cols, errors="ignore").copy()
 ```
 
 ---
-
 ### Step 4: Align features with training data
 
 ```python
