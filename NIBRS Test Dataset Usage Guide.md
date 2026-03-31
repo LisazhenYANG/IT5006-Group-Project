@@ -44,8 +44,8 @@ Ground truth labels.
 ```python
 import pandas as pd
 
-X = pd.read_csv("X_test_nibrs.csv")
-y = pd.read_csv("y_test_nibrs.csv")
+X = pd.read_csv("../data/nibrs/X_test_nibrs.csv")
+y = pd.read_csv("../data/nibrs/y_test_nibrs.csv")
 ```
 
 ---
@@ -61,8 +61,16 @@ data = X.merge(y, on="agency_id", how="inner")
 ### Step 3: Prepare model input
 
 ```python
-X_model = data.drop(columns=["agency_id", "label"])
-y_true = data["label"]
+X_nibrs_model = data.drop(columns=["agency_id", "label"])
+y_nibrs = data["label"]
+```
+
+---
+### Step 4: Remove latitude/longitude and district one-hot columns in X_train/X_test
+drop_cols = ["lat_mean", "lon_mean"] + [col for col in X_train.columns if col.startswith("district_")]
+
+X_train_aligned = X_train.drop(columns=drop_cols, errors="ignore").copy()
+X_test_aligned = X_test.drop(columns=drop_cols, errors="ignore").copy()
 ```
 
 ---
@@ -70,7 +78,7 @@ y_true = data["label"]
 ### Step 4: Align features with training data
 
 ```python
-X_model = X_model.reindex(columns=X_train.columns, fill_value=0)
+X_nibrs_model = X_nibrs_model.reindex(columns=X_train_aligned.columns, fill_value=0)
 ```
 
 ---
@@ -78,8 +86,8 @@ X_model = X_model.reindex(columns=X_train.columns, fill_value=0)
 ### Step 5: Make predictions
 
 ```python
-y_pred = model.predict(X_model)
-y_prob = model.predict_proba(X_model)[:, 1]
+y_pred = model.predict(X_nibrs_model)
+y_prob = model.predict_proba(X_nibrs_model)[:, 1]
 ```
 
 ---
