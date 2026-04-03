@@ -15,7 +15,16 @@ pydeck>=0.9.0
 streamlit>=1.18.0
 requests>=2.31.0
 
-# Optional Utility Libraries
-openpyxl>=3.1.0       # Read/Write Excel
-python-dateutil>=2.8  # pandas datetime
-pytz>=2023.3          # pandas timezone
+
+
+# Machine Learning
+scikit-learn>=1.2.0
+xgboost>=1.7.0
+joblib>=1.2.0
+
+
+# Optional
+requests>=2.31.0
+openpyxl>=3.1.0
+python-dateutil>=2.8.0
+pytz>=2023.3
