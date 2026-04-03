@@ -1,0 +1,13 @@
+[
+  "commercial_ratio",
+  "institution_ratio",
+  "other_ratio",
+  "public_ratio",
+  "residential_ratio",
+  "theft_ratio",
+  "battery_ratio",
+  "criminal_damage_ratio",
+  "assault_ratio",
+  "deceptive_practice_ratio",
+  "other_crime_ratio"
+]
