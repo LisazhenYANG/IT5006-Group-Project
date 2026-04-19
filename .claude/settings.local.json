@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat)",
+      "Bash(python3 analyze_features.py)",
+      "Bash(/opt/anaconda3/bin/python *)",
+      "Bash(.venv/bin/python3 *)",
+      "Bash(.venv/bin/jupyter nbconvert *)",
+      "Bash(.venv/bin/pip install *)",
+      "Bash(pip3 install *)",
+      "Bash(python3 *)",
+      "Bash(python *)",
+      "Bash(conda run *)",
+      "Bash(grep -v \"^[+-]\\\\s*\\\\\"\\\\\\\\\\\\\\\\n\\\\|^[+-]\\\\s*$\")"
+    ]
+  }
+}

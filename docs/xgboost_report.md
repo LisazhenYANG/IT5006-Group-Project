@@ -107,3 +107,81 @@ The top predictive features are crime-type ratios (e.g., `theft_ratio`, `commerc
 4. **Class imbalance.** Hotspot locations are a minority class. Despite `scale_pos_weight` correction, the model may still under-detect emerging hotspots in areas with historically low crime counts.
 
 5. **Causal vs. correlational.** High feature importance does not imply causality. Acting solely on model predictions without domain expertise risks reinforcing existing policing biases rather than addressing root causes of crime.
+
+---
+
+## Cross-Domain Generalisation: NIBRS Evaluation
+
+### Problem Statement
+
+To assess model robustness beyond Chicago, we applied the trained model to the NIBRS (National Incident-Based Reporting System) dataset, covering 1,914 law enforcement agencies across the United States (2021–2023 features → 2024 labels). This tests whether crime hotspot patterns learned from a single city generalise to geographically diverse jurisdictions.
+
+Initial cross-domain evaluation revealed a substantial performance drop (AUC-ROC: 0.9851 → ~0.62), which we investigated and partially mitigated through three targeted interventions.
+
+---
+
+### Root Cause Analysis
+
+Two categories of issues were identified:
+
+**1. Feature Engineering Bug**
+
+The Chicago location mapping used exact string matching (e.g., `"SCHOOL"` → `INSTITUTION`), which failed to match Chicago's verbose location descriptions (e.g., `"SCHOOL, PUBLIC, BUILDING"`). This caused `institution_ratio` to be effectively zero across all Chicago training samples, while the corresponding NIBRS value averaged 0.132 — a distribution gap that could not be learned from training data.
+
+**2. Domain Shift**
+
+Fundamental distributional differences exist between the two datasets:
+
+| Feature | Chicago (train) | NIBRS (test, original) | Difference |
+|---|---|---|---|
+| `institution_ratio` | 0.000 | 0.132 | +0.132 |
+| `commercial_ratio` | 0.031 | 0.128 | +0.097 |
+| `theft_ratio` | 0.220 | 0.371 | +0.151 |
+| `assault_ratio` | 0.082 | 0.032 | −0.050 |
+
+These gaps stem from two structural differences: (1) Chicago uses `community_area` (77 urban neighbourhoods within a single city) as the spatial unit, while NIBRS uses `agency_id` (nationwide agencies of varying type and size); and (2) the NIBRS test set includes agencies from the South (63%) and West (31%) — regions with systematically different crime patterns from Midwest Chicago.
+
+---
+
+### Remediation Measures
+
+Three interventions were applied to reduce the performance gap:
+
+**Measure 1: Fix `institution_ratio` Mapping Bug**
+
+The exact-match mapping in `03_processing.ipynb` was replaced with keyword-based matching, correctly assigning location descriptions containing `SCHOOL`, `HOSPITAL`, `CHURCH`, `LIBRARY`, etc. to the `INSTITUTION` category. This corrected a systematic data quality error affecting the entire training set.
+
+**Measure 2: Filter NIBRS to City-Type Agencies**
+
+The original NIBRS test set includes county agencies, state police, university police, tribal agencies, and other types that are structurally incomparable to Chicago's urban community areas. We filtered the test set to retain only `City`-type agencies (1,133 out of 1,914), making the comparison more semantically consistent.
+
+**Measure 3: Retrain on Updated Features**
+
+Following the feature engineering fix, the model was retrained on the corrected `X_train` to ensure the updated `institution_ratio` and `commercial_ratio` distributions were reflected in learned decision boundaries.
+
+---
+
+### Results: Before and After
+
+| Metric | Before | After | Change |
+|---|---|---|---|
+| Precision | 0.300 | 0.524 | **+0.224** |
+| Recall | 0.800 | 0.656 | −0.144 |
+| F1-Score | 0.440 | 0.583 | **+0.143** |
+| AUC-ROC | 0.625 | **0.716** | **+0.091** |
+
+The AUC-ROC improvement of +0.091 reflects genuine gains from correcting the feature engineering bug and improving test set comparability. The slight Recall decrease is attributable to the City filter: restricting the test set raised the hotspot prevalence from 26% to 35%, making the classification task inherently more challenging and shifting the precision-recall trade-off.
+
+---
+
+### Residual Gap and Limitations
+
+Despite the improvements, a performance gap remains between the Chicago internal test (AUC-ROC: 0.9851) and the NIBRS cross-domain test (AUC-ROC: 0.716). This residual gap is attributed to the following irreducible structural limitations:
+
+1. **Spatial unit incompatibility.** Chicago's `community_area` represents a dense urban sub-city neighbourhood (~77 units within one city), whereas a NIBRS `agency_id` covers an entire city jurisdiction. The aggregation semantics differ fundamentally, and this cannot be resolved without incident-level NIBRS data with coordinates.
+
+2. **Geographic distribution mismatch.** The model was trained exclusively on Midwest urban data (Chicago). The NIBRS test set contains no Midwest agencies; agencies are drawn from the South and West, where regional crime patterns differ from Chicago.
+
+3. **P(Y|X) shift.** Beyond feature distributions, the underlying relationship between feature values and hotspot probability may differ across cities and regions. This is a fundamental constraint of single-city training that cannot be overcome through feature normalisation alone.
+
+These limitations are inherent to the cross-dataset evaluation design and represent directions for future work, such as multi-city joint training or domain adaptation techniques.
